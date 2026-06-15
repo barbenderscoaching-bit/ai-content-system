@@ -47,24 +47,26 @@ _FONT_DIR = Path.home() / "Library" / "Fonts"
 
 
 class ProfessionalDoc(FPDF):
-    """Clean, modern professional PDF — white bg, blue accents, sharp layout."""
+    """Barbenders Belgium — licht thema, goud accent, Montserrat uppercase."""
 
-    # ── Color System (neutral professional palette) ───────
-    WHITE = (255, 255, 255)
-    LIGHT_BG = (248, 249, 250)        # subtle gray background
-    DARK_BG = (243, 244, 246)          # slightly darker for striping
-    CHARCOAL = (31, 41, 55)            # primary text
-    CHARCOAL_LIGHT = (55, 65, 81)      # secondary text
-    BLUE = (37, 99, 235)               # primary accent
-    BLUE_LIGHT = (59, 130, 246)        # lighter blue
-    BLUE_BG = (239, 246, 255)          # very light blue tint
-    AMBER = (217, 119, 6)              # secondary accent (tips/warnings)
-    AMBER_BG = (255, 251, 235)         # very light amber tint
-    GRAY = (107, 114, 128)             # muted body text
-    LIGHT_GRAY = (156, 163, 175)       # subtle text
-    BORDER = (229, 231, 235)           # subtle borders
-    CODE_BG = (31, 41, 55)             # dark code blocks
-    CODE_TEXT = (248, 249, 250)
+    # ── Barbenders Belgium kleurpalet (licht, printbaar) ──
+    BG_PAGE = (255, 255, 255)          # wit  pagina-achtergrond
+    WHITE = (255, 255, 255)            # wit
+    LIGHT_BG = (248, 248, 248)         # heel licht grijs  card-achtergrond
+    DARK_BG = (240, 240, 240)          # iets donkerder grijs  striping
+    CHARCOAL = (13, 13, 13)            # #0D0D0D  primaire tekst
+    CHARCOAL_LIGHT = (55, 65, 81)      # donkergrijs  secundaire tekst
+    BLUE = (255, 213, 0)               # #FFD500  goud accent
+    BLUE_LIGHT = (255, 235, 120)       # lichtgoud
+    BLUE_BG = (255, 251, 210)          # zeer lichte goudtint  achtergrond
+    AMBER = (255, 213, 0)              # #FFD500  zelfde als goud
+    AMBER_BG = (255, 251, 210)         # zeer lichte goudtint  tip-achtergrond
+    GRAY = (90, 95, 105)               # donkergrijs  body tekst
+    LIGHT_GRAY = (140, 145, 155)       # subtiele tekst
+    BORDER = (220, 220, 220)           # lichte rand
+    CODE_BG = (31, 41, 55)             # donker voor code blokken (contrast)
+    CODE_TEXT = (248, 249, 250)        # lichte code tekst
+    ACCENT_FG = (13, 13, 13)           # #0D0D0D  tekst OP goud elementen
 
     # ── Layout ────────────────────────────────────────────
     MARGIN = 20
@@ -75,10 +77,31 @@ class ProfessionalDoc(FPDF):
         super().__init__()
         self.set_auto_page_break(auto=True, margin=22)
         self.set_margin(self.MARGIN)
-        self._footer_text = "Generated with AI Content System"
+        self._footer_text = "Barbenders Belgium | 2026"
         self._is_cover_page = True
         self._doc_title = ""
+        self._bg_drawn_pages = set()
         self._register_fonts()
+
+    def _ensure_dark_bg(self):
+        """Teken donkere achtergrond op huidige pagina — betrouwbaar bij automatische paginabreuken."""
+        p = self.page_no()
+        if p in self._bg_drawn_pages:
+            return
+        self._bg_drawn_pages.add(p)
+        saved_x, saved_y = self.get_x(), self.get_y()
+        self.set_fill_color(*self.BG_PAGE)
+        self.rect(0, 0, self.w, self.h, style="F")
+        # Gouden top-balk op inhoudspagina's
+        if not self._is_cover_page:
+            self.set_fill_color(*self.BLUE)
+            self.rect(0, 0, self.w, self.HEADER_BAR_H, style="F")
+            self.set_y(self.HEADER_BAR_H + 2)
+            self.set_font("Montserrat", "B", 6.5)
+            self.set_text_color(*self.LIGHT_GRAY)
+            self.cell(0, 4, self._doc_title.upper()[:60], align="C")
+            self.set_y(self.HEADER_BAR_H + 8)
+        self.set_xy(saved_x, saved_y)
 
     def _register_fonts(self):
         fd = _FONT_DIR
@@ -159,14 +182,13 @@ class ProfessionalDoc(FPDF):
     def header(self):
         if self._is_cover_page:
             return
-        # Blue top bar
-        self._sharp_rect(0, 0, self.w, self.HEADER_BAR_H, self.BLUE)
-        # Title in small caps
+        # Gouden top-balk
+        self.set_fill_color(*self.BLUE)
+        self.rect(0, 0, self.w, self.HEADER_BAR_H, style="F")
         self.set_y(self.HEADER_BAR_H + 2)
         self.set_font("Montserrat", "B", 6.5)
-        self._color(self.LIGHT_GRAY)
-        title_upper = self._doc_title.upper()[:60]
-        self.cell(0, 4, title_upper, align="C")
+        self.set_text_color(*self.ACCENT_FG)
+        self.cell(0, 4, self._doc_title.upper()[:60], align="C")
         self.set_y(self.HEADER_BAR_H + 8)
 
     def footer(self):
@@ -187,113 +209,96 @@ class ProfessionalDoc(FPDF):
 
     # ── Cover Page ────────────────────────────────────────
 
-    def render_cover(self, title, subtitle=None, subtitle_bullets=None):
+    def render_cover(self, title, subtitle=None, subtitle_bullets=None,
+                     cover_label=None, learn_label=None, series_label=None):
         self.add_page()
         self._is_cover_page = True
         self._doc_title = title
 
-        # White background
-        self._sharp_rect(0, 0, self.w, self.h, self.WHITE)
+        # ── Volledige donkere achtergrond ────────────────────
+        self._sharp_rect(0, 0, self.w, self.h, self.CHARCOAL)
 
-        # Top: blue bar
-        bar_h = 4
-        self._sharp_rect(0, 0, self.w, bar_h, self.BLUE)
+        # ── Top gouden balk met label ─────────────────────────
+        top_bar_h = 14
+        self._sharp_rect(0, 0, self.w, top_bar_h, self.BLUE)
+        self.set_font("Montserrat", "B", 7)
+        self._color(self.ACCENT_FG)
+        self.set_xy(0, (top_bar_h - 4) / 2)
+        self.cell(self.w, 4, (cover_label or "BARBENDERS COACHING").upper(), align="C")
 
-        # Category label
-        self.set_y(bar_h + 12)
+        # ── Titel — wit, groot, uppercase ────────────────────
+        title_y = top_bar_h + 36
+        self.set_xy(self.l_margin, title_y)
+        self.set_font("Montserrat", "B", 36)
+        self._color(self.WHITE)
+        self.multi_cell(0, 14, title.upper(), align="L")
+
+        # ── Subtitle ─────────────────────────────────────────
+        if subtitle:
+            self.ln(10)
+            self.set_font("Poppins", "", 12)
+            self._color(self.LIGHT_GRAY)
+            self.multi_cell(self.epw * 0.85, 7, subtitle, align="L")
+
+        # ── Gouden divider ───────────────────────────────────
+        self.ln(8)
+        divider_y = self.get_y()
+        with self.local_context():
+            self._draw(self.BLUE)
+            self.set_line_width(0.8)
+            self.line(self.l_margin, divider_y, self.w - self.r_margin, divider_y)
+
+        # ── "WAT JE LEERT" label ─────────────────────────────
+        self.ln(8)
         self.set_font("Montserrat", "B", 8)
         self._color(self.BLUE)
-        # Blue dot + label
-        dot_x = self.l_margin
-        dot_y = self.get_y() + 1.5
-        with self.local_context():
-            self._bg(self.BLUE)
-            self.ellipse(dot_x, dot_y, 2.5, 2.5, style="F")
-        self.set_x(dot_x + 5)
-        self.cell(0, 5, "GUIDE", new_x="LMARGIN", new_y="NEXT")
+        self.set_x(self.l_margin)
+        self.cell(0, 5, (learn_label or "WAT JE LEERT").upper(), new_x="LMARGIN", new_y="NEXT")
         self.ln(4)
 
-        # Title — large uppercase
-        self.set_font("Montserrat", "B", 32)
-        self._color(self.CHARCOAL)
-        self.multi_cell(0, 13, title.upper(), align="L")
-        self.ln(2)
-
-        # Divider
-        self._divider()
-        self.ln(5)
-
-        # Subtitle
-        if subtitle:
-            self.set_font("Poppins", "", 11)
-            self._color(self.GRAY)
-            self.multi_cell(self.epw * 0.75, 6, subtitle, align="L")
-            self.ln(4)
-
-        # "What You'll Learn" — bordered card with bullets
+        # ── Bullets — goud vierkantje + witte tekst ───────────
         if subtitle_bullets:
-            card_x = self.l_margin
-            card_w = self.epw
-            text_w = card_w - 28
-
-            # Pre-calculate card height
-            self.set_font("Poppins", "", 9)
-            total_bullet_h = 0
             for item in subtitle_bullets:
-                n_lines = max(1, len(item) * self.get_string_width("x") / text_w + 0.5)
-                total_bullet_h += max(7, int(n_lines) * 5.5 + 2)
-            card_h = total_bullet_h + 24
+                bx = self.l_margin
+                by = self.get_y()
+                self._sharp_rect(bx, by + 2, 4, 4, self.BLUE)
+                self.set_x(bx + 9)
+                self._color(self.WHITE)
+                self.set_font("Poppins", "", 10.5)
+                self.multi_cell(self.epw - 9, 6.5, item)
+                self.ln(4)
 
-            self._bordered_card(card_x, self.get_y(), card_w, card_h, fill=self.WHITE, border_w=1.5, shadow_offset=3)
+        # Disable auto page break so bottom-of-cover elements don't trigger spurious new pages
+        self.set_auto_page_break(False)
 
-            y_top = self.get_y()
+        # ── Decoratief getal in achtergrond ──────────────────
+        ghost_y = self.h - 80
+        self.set_font("Montserrat", "B", 120)
+        self.set_text_color(30, 30, 30)
+        self.set_xy(self.w - self.l_margin - 70, ghost_y)
+        self.cell(60, 80, "01", align="R")
 
-            # Blue accent bar on left edge
-            self._sharp_rect(card_x, y_top, 4, card_h, self.BLUE)
+        # ── Seriesslabel boven de onderste balk ──────────────
+        series_bar_y = self.h - 18
+        self._sharp_rect(self.l_margin, series_bar_y, self.epw, 10, (30, 30, 30))
+        self.set_font("Montserrat", "B", 8)
+        self._color(self.BLUE)
+        self.set_xy(self.l_margin + 4, series_bar_y + 2.5)
+        self.cell(self.epw - 8, 5, (series_label or "START TO CALISTHENICS — DEEL 1/5").upper(), new_x="RIGHT", new_y="TOP")
+        self._color(self.LIGHT_GRAY)
+        self.set_font("Poppins", "", 7)
+        self.cell(0, 5, "barbenderstreetworkout.com", align="R")
 
-            # Section number
-            self.set_xy(card_x + 10, y_top + 5)
-            self.set_font("Montserrat", "B", 8)
-            self._color(self.BLUE)
-            self.cell(10, 5, "01", new_x="RIGHT", new_y="TOP")
-
-            # Dash
-            with self.local_context():
-                self._draw(self.BORDER)
-                self.set_line_width(0.5)
-                self.line(self.get_x() + 2, y_top + 7.5, self.get_x() + 8, y_top + 7.5)
-
-            # Label
-            self.set_xy(self.get_x() + 10, y_top + 5)
-            self._color(self.LIGHT_GRAY)
-            self.set_font("Montserrat", "B", 7)
-            self.cell(0, 5, "WHAT YOU'LL LEARN", new_x="LMARGIN", new_y="NEXT")
-            self.ln(2)
-
-            # Bullet items
-            for item in subtitle_bullets:
-                self.set_x(card_x + 10)
-                # Blue checkmark square
-                ck_x = self.get_x()
-                ck_y = self.get_y() + 0.5
-                self._sharp_rect(ck_x, ck_y, 4.5, 4.5, self.BLUE)
-                # White checkmark
-                with self.local_context():
-                    self._draw(self.WHITE)
-                    self.set_line_width(0.6)
-                    self.line(ck_x + 1, ck_y + 2.5, ck_x + 2, ck_y + 3.5)
-                    self.line(ck_x + 2, ck_y + 3.5, ck_x + 3.8, ck_y + 1)
-
-                # Item text
-                self.set_x(ck_x + 8)
-                self._color(self.CHARCOAL)
-                self.set_font("Poppins", "", 9)
-                self.multi_cell(text_w, 5.5, item)
-                self.ln(1)
-
-            self.set_y(y_top + card_h + 4)
+        # ── Onderste gouden balk met footer ──────────────────
+        bottom_bar_y = self.h - 8
+        self._sharp_rect(0, bottom_bar_y, self.w, 8, self.BLUE)
+        self.set_font("Montserrat", "B", 7)
+        self._color(self.ACCENT_FG)
+        self.set_xy(0, bottom_bar_y + 2)
+        self.cell(self.w, 4, self._footer_text.upper(), align="C")
 
         self._is_cover_page = False
+        self.set_auto_page_break(True, margin=22)
 
     # ── Section Title ─────────────────────────────────────
 
@@ -301,7 +306,7 @@ class ProfessionalDoc(FPDF):
         if self._check_page_limit():
             return
         self._ensure_space(26)
-        self.ln(8)
+        self.ln(6)
 
         y = self.get_y()
 
@@ -360,7 +365,7 @@ class ProfessionalDoc(FPDF):
         with self.local_context():
             self._draw(self.BLUE)
             self.set_line_width(0.8)
-            self.line(self.l_margin, self.get_y(), self.l_margin + 20, self.get_y())
+            self.line(self.l_margin, self.get_y(), self.l_margin + 30, self.get_y())
         self.ln(3)
 
     # ── Bullets ───────────────────────────────────────────
@@ -454,7 +459,7 @@ class ProfessionalDoc(FPDF):
         badge_w = self.get_string_width(title.upper()) + 8
         self.set_font("Montserrat", "B", 7)
         self._sharp_rect(badge_x, badge_y, badge_w, 5.5, self.AMBER)
-        self._color(self.WHITE)
+        self._color(self.ACCENT_FG)
         self.set_xy(badge_x + 4, badge_y + 0.5)
         self.cell(badge_w - 8, 4.5, self._clean(title).upper())
 
@@ -470,7 +475,7 @@ class ProfessionalDoc(FPDF):
     def render_table(self, headers, rows):
         if self._check_page_limit():
             return
-        row_h = 7
+        row_h = 8
         header_h = 9
         table_h = header_h + len(rows) * row_h + 4
         self._ensure_space(table_h)
@@ -480,21 +485,21 @@ class ProfessionalDoc(FPDF):
         x_start = self.l_margin
         y_start = self.get_y()
 
-        # Table border
-        self._sharp_rect(x_start, y_start, self.epw, table_h, self.WHITE, self.BORDER, 1)
+        # Tabel rand
+        self._sharp_rect(x_start, y_start, self.epw, table_h, self.LIGHT_BG, self.BORDER, 1)
 
-        # Header row — blue bg
-        self._sharp_rect(x_start, y_start, self.epw, header_h, self.CHARCOAL)
-        self._color(self.WHITE)
+        # Header rij — goud achtergrond
+        self._sharp_rect(x_start, y_start, self.epw, header_h, self.BLUE)
+        self._color(self.ACCENT_FG)
         self.set_font("Montserrat", "B", 8)
         self.set_xy(x_start, y_start)
         for h in headers:
             self.cell(col_w, header_h, f"  {h.upper()}", new_x="RIGHT", new_y="TOP")
         self.set_y(y_start + header_h)
 
-        # Data rows with striping
+        # Data rijen met striping
         for i, row in enumerate(rows):
-            bg = self.LIGHT_BG if i % 2 == 0 else self.WHITE
+            bg = self.DARK_BG if i % 2 == 0 else self.LIGHT_BG
             self._bg(bg)
             self._color(self.CHARCOAL)
             self.set_font("Poppins", "", 8.5)
@@ -539,7 +544,7 @@ class ProfessionalDoc(FPDF):
             sq_size = 9
             self._sharp_rect(x + 2, y, sq_size, sq_size, self.BLUE)
             self.set_font("Montserrat", "B", 8)
-            self._color(self.WHITE)
+            self._color(self.ACCENT_FG)
             num_str = str(i).zfill(2)
             nw = self.get_string_width(num_str)
             self.set_xy(x + 2 + (sq_size - nw) / 2, y + 1.5)
@@ -607,12 +612,12 @@ class ProfessionalDoc(FPDF):
         w = self.epw
 
         # Bordered card
-        self._bordered_card(x, y, w, box_h, fill=self.WHITE, border_w=1, shadow_offset=2)
+        self._bordered_card(x, y, w, box_h, fill=self.LIGHT_BG, border_w=1, shadow_offset=2)
 
-        # Blue top bar
+        # Gouden top-balk
         self._sharp_rect(x, y, w, 3, self.BLUE)
 
-        # Title
+        # Titel
         self.set_xy(x + 10, y + 7)
         self._color(self.CHARCOAL)
         self.set_font("Montserrat", "B", 10)
@@ -643,14 +648,14 @@ class ProfessionalDoc(FPDF):
         # Bordered card
         self._bordered_card(x, y, w, box_h, fill=self.LIGHT_BG, border_w=1, shadow_offset=2)
 
-        # Charcoal top bar
-        self._sharp_rect(x, y, w, 3, self.CHARCOAL)
+        # Gouden top-balk
+        self._sharp_rect(x, y, w, 3, self.BLUE)
 
-        # Title
+        # Titel
         self.set_xy(x + 10, y + 7)
         self._color(self.CHARCOAL)
         self.set_font("Montserrat", "B", 10)
-        self.cell(0, 6, "RESOURCES & LINKS", new_x="LMARGIN", new_y="NEXT")
+        self.cell(0, 6, "BRONNEN & LINKS", new_x="LMARGIN", new_y="NEXT")
         self.ln(1)
 
         # Items with blue bullets
@@ -665,6 +670,50 @@ class ProfessionalDoc(FPDF):
             self.cell(0, 6, r, new_x="LMARGIN", new_y="NEXT")
 
         self.set_y(y + box_h + 6)
+
+    # ── Training Card ─────────────────────────────────────
+
+    def render_training_card(self, title, rows):
+        if self._check_page_limit():
+            return
+        n_cols = max(len(r) for r in rows) if rows else 4
+        row_h = 8
+        header_h = 9
+        card_h = header_h + len(rows) * row_h + 4
+        self._ensure_space(card_h + 8)
+        self.ln(2)
+        x = self.l_margin
+        y = self.get_y()
+        w = self.epw
+        accent_w = 3
+
+        # Kaartachtergrond met rand
+        self._sharp_rect(x, y, w, card_h, self.LIGHT_BG, self.BORDER, 0.8)
+
+        # Donkere linker accent-balk
+        self._sharp_rect(x, y, accent_w, card_h, self.CHARCOAL)
+
+        # Gouden header-balk
+        self._sharp_rect(x + accent_w, y, w - accent_w, header_h, self.BLUE)
+        self.set_font("Montserrat", "B", 9)
+        self._color(self.ACCENT_FG)
+        self.set_xy(x + accent_w + 4, y + (header_h - 5) / 2)
+        self.cell(w - accent_w - 8, 5, self._clean(title).upper())
+
+        # Data-rijen met striping
+        col_w = (w - accent_w) / max(n_cols, 1)
+        for i, row in enumerate(rows):
+            row_y = y + header_h + i * row_h
+            bg = self.DARK_BG if i % 2 == 0 else self.LIGHT_BG
+            self._sharp_rect(x + accent_w, row_y, w - accent_w, row_h, bg)
+            self.set_font("Poppins", "", 9)
+            self._color(self.CHARCOAL)
+            self.set_xy(x + accent_w, row_y)
+            for j, cell_val in enumerate(row):
+                self.set_xy(x + accent_w + j * col_w + 2, row_y + (row_h - 5) / 2)
+                self.cell(col_w - 4, 5, str(cell_val))
+
+        self.set_y(y + card_h + 4)
 
     # ── main render dispatch ──────────────────────────────
 
@@ -719,6 +768,8 @@ class ProfessionalDoc(FPDF):
             self.render_callout_box(section["title"], section["items"])
         elif t == "resources":
             self.render_resources(section["items"])
+        elif t == "training_card":
+            self.render_training_card(section["title"], section["rows"])
         elif t == "page_break":
             if not self._check_page_limit():
                 self.add_page()
@@ -733,6 +784,9 @@ class ProfessionalDoc(FPDF):
             content["title"],
             content.get("subtitle"),
             content.get("subtitle_bullets"),
+            cover_label=content.get("cover_label"),
+            learn_label=content.get("learn_label"),
+            series_label=content.get("series_label"),
         )
 
         for section in content.get("sections", []):
