@@ -673,174 +673,131 @@ class ProfessionalDoc(FPDF):
 
     # ── Stick Figure Drawing ──────────────────────────────
 
-    def _draw_stick_figure(self, cx, cy, size, pose="stand"):
-        """Draw a minimal stick figure at (cx,cy) with given size.
-        pose: stand | prone | squat | row | hollow
+    def _draw_stick_figure(self, fx, fy, fw, fh, pose="stand"):
+        """Draw a stick figure contained within bounding box (fx, fy, fw, fh).
+        All elements use relative coordinates [0,1] mapped to the box.
+        pose: prone | prone_knee | squat | box_squat | split_squat |
+              row | row_incline | hollow | hollow_tuck
         """
+        def pt(rx, ry):
+            return fx + rx * fw, fy + ry * fh
+
+        def ln(rx1, ry1, rx2, ry2):
+            x1, y1 = pt(rx1, ry1)
+            x2, y2 = pt(rx2, ry2)
+            self.line(x1, y1, x2, y2)
+
+        def head(rx, ry, rx_r=0.10, ry_r=0.14):
+            cx, cy = pt(rx, ry)
+            rx_abs = fw * rx_r
+            ry_abs = fh * ry_r
+            self.ellipse(cx - rx_abs, cy - ry_abs, rx_abs * 2, ry_abs * 2, "D")
+
         with self.local_context():
             self.set_draw_color(*self.CHARCOAL)
-            self.set_line_width(0.8)
-            head_r = size * 0.18
-            body_len = size * 0.35
-            limb_len = size * 0.28
+            self.set_fill_color(*self.CHARCOAL)
+            self.set_line_width(1.3)
 
             if pose == "prone":
-                # Lying face-down, arms bent at elbow (push-up)
-                bx, by = cx, cy + size * 0.05
-                # Body horizontal
-                self.line(bx - body_len, by, bx + body_len * 0.3, by)
-                # Head
-                self.ellipse(bx + body_len * 0.3, by - head_r, head_r * 2, head_r * 2, style="D")
-                # Arms bent downward
-                self.line(bx - body_len * 0.4, by, bx - body_len * 0.4, by + limb_len * 0.8)
-                self.line(bx - body_len * 0.1, by, bx - body_len * 0.1, by + limb_len * 0.8)
-                # Legs (straight back)
-                self.line(bx - body_len, by, bx - body_len * 1.3, by + limb_len * 0.2)
-                self.line(bx - body_len, by, bx - body_len * 1.3, by - limb_len * 0.2)
+                # Push-up: body horizontal, arms pushing down, head right
+                head(0.87, 0.35)
+                ln(0.14, 0.50, 0.80, 0.50)   # body
+                ln(0.38, 0.50, 0.38, 0.82)   # left arm down
+                ln(0.58, 0.50, 0.58, 0.82)   # right arm down
+                ln(0.14, 0.50, 0.05, 0.40)   # top leg
+                ln(0.14, 0.50, 0.05, 0.60)   # bottom leg
 
             elif pose == "prone_knee":
-                # Knee push-up: body angled, knees bent on ground
-                bx, by = cx, cy
-                # Body diagonal from knees to head
-                self.line(bx - body_len * 0.6, by + size * 0.2, bx + body_len * 0.5, by - size * 0.1)
-                # Head
-                self.ellipse(bx + body_len * 0.5, by - size * 0.1 - head_r * 2, head_r * 2, head_r * 2, style="D")
-                # Arms
-                self.line(bx + body_len * 0.1, by + size * 0.05, bx + body_len * 0.1, by + size * 0.25)
-                self.line(bx + body_len * 0.3, by, bx + body_len * 0.3, by + size * 0.2)
-                # Knees on ground
-                self.line(bx - body_len * 0.6, by + size * 0.2, bx - body_len * 0.9, by + size * 0.3)
-                self.line(bx - body_len * 0.9, by + size * 0.3, bx - body_len * 0.7, by + size * 0.4)
-
-            elif pose == "squat":
-                # Bodyweight squat
-                bx, by = cx, cy
-                # Head
-                self.ellipse(bx - head_r, by - head_r, head_r * 2, head_r * 2, style="D")
-                # Body (slightly leaning forward)
-                self.line(bx, by + head_r * 2, bx - size * 0.05, by + head_r * 2 + body_len * 0.9)
-                # Arms forward
-                self.line(bx, by + head_r * 2 + body_len * 0.2, bx + limb_len * 0.8, by + head_r * 2 + body_len * 0.5)
-                self.line(bx, by + head_r * 2 + body_len * 0.2, bx - limb_len * 0.8, by + head_r * 2 + body_len * 0.5)
-                # Legs bent in squat
-                hip_y = by + head_r * 2 + body_len * 0.9
-                self.line(bx - size * 0.05, hip_y, bx - limb_len * 0.5, hip_y + limb_len * 0.6)
-                self.line(bx - limb_len * 0.5, hip_y + limb_len * 0.6, bx - limb_len * 0.3, hip_y + limb_len * 1.0)
-                self.line(bx - size * 0.05, hip_y, bx + limb_len * 0.5, hip_y + limb_len * 0.6)
-                self.line(bx + limb_len * 0.5, hip_y + limb_len * 0.6, bx + limb_len * 0.3, hip_y + limb_len * 1.0)
-
-            elif pose == "box_squat":
-                # Box squat: sitting on a box
-                bx, by = cx, cy - size * 0.05
-                box_y = by + size * 0.55
-                # Box
-                self._sharp_rect(bx - limb_len * 0.7, box_y, limb_len * 1.4, size * 0.15, self.BORDER)
-                # Head
-                self.ellipse(bx - head_r, by - head_r, head_r * 2, head_r * 2, style="D")
-                # Body (upright sitting)
-                self.line(bx, by + head_r * 2, bx, box_y)
-                # Arms resting
-                self.line(bx, by + head_r * 2 + body_len * 0.3, bx + limb_len * 0.7, by + head_r * 2 + body_len * 0.6)
-                self.line(bx, by + head_r * 2 + body_len * 0.3, bx - limb_len * 0.7, by + head_r * 2 + body_len * 0.6)
-                # Legs horizontal (sitting)
-                self.line(bx, box_y, bx + limb_len * 0.8, box_y)
-                self.line(bx, box_y, bx - limb_len * 0.8, box_y)
-                self.line(bx + limb_len * 0.8, box_y, bx + limb_len * 0.6, box_y + limb_len * 0.7)
-                self.line(bx - limb_len * 0.8, box_y, bx - limb_len * 0.6, box_y + limb_len * 0.7)
-
-            elif pose == "split_squat":
-                # Split squat: one foot forward, one back
-                bx, by = cx, cy
-                # Head
-                self.ellipse(bx - head_r, by - head_r, head_r * 2, head_r * 2, style="D")
-                # Body
-                self.line(bx, by + head_r * 2, bx, by + head_r * 2 + body_len * 0.9)
-                # Arms
-                self.line(bx, by + head_r * 2 + body_len * 0.3, bx + limb_len * 0.6, by + head_r * 2 + body_len * 0.5)
-                self.line(bx, by + head_r * 2 + body_len * 0.3, bx - limb_len * 0.6, by + head_r * 2 + body_len * 0.5)
-                # Front leg
-                hip_y = by + head_r * 2 + body_len * 0.9
-                self.line(bx, hip_y, bx + limb_len * 0.6, hip_y + limb_len * 0.6)
-                self.line(bx + limb_len * 0.6, hip_y + limb_len * 0.6, bx + limb_len * 0.5, hip_y + limb_len * 1.1)
-                # Back leg (knee on ground direction)
-                self.line(bx, hip_y, bx - limb_len * 0.4, hip_y + limb_len * 0.8)
-                self.line(bx - limb_len * 0.4, hip_y + limb_len * 0.8, bx - limb_len * 0.2, hip_y + limb_len * 1.1)
+                # Knee push-up: body diagonal, knees on ground
+                head(0.83, 0.16)
+                ln(0.24, 0.68, 0.76, 0.30)   # body diagonal
+                ln(0.54, 0.44, 0.54, 0.78)   # front arm
+                ln(0.66, 0.37, 0.66, 0.72)   # back arm
+                ln(0.24, 0.68, 0.10, 0.84)   # thigh to knee
+                ln(0.10, 0.84, 0.05, 0.70)   # lower leg
 
             elif pose == "row":
-                # Australian row: hanging under bar, body horizontal
-                bx, by = cx, cy + size * 0.05
-                # Bar at top
-                self.set_draw_color(*self.CHARCOAL)
-                self.set_line_width(1.2)
-                self.line(bx - body_len * 1.1, by - size * 0.35, bx + body_len * 0.6, by - size * 0.35)
-                self.set_line_width(0.8)
-                # Head
-                self.ellipse(bx + body_len * 0.3, by - head_r * 2 - size * 0.05, head_r * 2, head_r * 2, style="D")
-                # Body horizontal
-                self.line(bx - body_len * 0.8, by, bx + body_len * 0.4, by)
-                # Arms reaching up to bar
-                self.line(bx + body_len * 0.15, by, bx + body_len * 0.0, by - size * 0.35)
-                self.line(bx - body_len * 0.1, by, bx - body_len * 0.2, by - size * 0.35)
-                # Legs
-                self.line(bx - body_len * 0.8, by, bx - body_len * 1.15, by + size * 0.1)
-                self.line(bx - body_len * 0.8, by, bx - body_len * 1.1, by - size * 0.05)
+                # Australian row: bar at top, body horizontal underneath
+                self.set_line_width(1.8)
+                ln(0.05, 0.18, 0.95, 0.18)   # bar (thick)
+                self.set_line_width(1.3)
+                head(0.83, 0.42)
+                ln(0.14, 0.55, 0.76, 0.55)   # body horizontal
+                ln(0.52, 0.55, 0.46, 0.18)   # left arm to bar
+                ln(0.65, 0.55, 0.64, 0.18)   # right arm to bar
+                ln(0.14, 0.55, 0.05, 0.68)   # leg 1
+                ln(0.14, 0.55, 0.05, 0.44)   # leg 2
 
             elif pose == "row_incline":
-                # Inclined row: body more upright, hands at chest height
-                bx, by = cx, cy
-                # Bar at medium height
-                self.set_draw_color(*self.CHARCOAL)
-                self.set_line_width(1.2)
-                self.line(bx - body_len * 0.3, by - size * 0.15, bx + body_len * 0.7, by - size * 0.15)
-                self.set_line_width(0.8)
-                # Head
-                self.ellipse(bx - head_r, by - size * 0.55 - head_r, head_r * 2, head_r * 2, style="D")
-                # Body at ~45 degree angle
-                self.line(bx, by - size * 0.55 + head_r, bx, by - size * 0.15)
-                # Arms to bar
-                self.line(bx, by - size * 0.4, bx + limb_len * 0.4, by - size * 0.15)
-                self.line(bx, by - size * 0.4, bx - limb_len * 0.1, by - size * 0.15)
-                # Legs to floor
-                self.line(bx, by - size * 0.15, bx + limb_len * 0.4, by + size * 0.3)
-                self.line(bx, by - size * 0.15, bx - limb_len * 0.1, by + size * 0.3)
+                # Inclined row: bar at mid-height, body at 45°
+                self.set_line_width(1.8)
+                ln(0.52, 0.26, 0.95, 0.26)   # bar (thick, right side)
+                self.set_line_width(1.3)
+                head(0.78, 0.13)
+                ln(0.72, 0.28, 0.24, 0.74)   # body diagonal
+                ln(0.68, 0.38, 0.68, 0.26)   # left arm to bar
+                ln(0.60, 0.44, 0.62, 0.26)   # right arm to bar
+                ln(0.24, 0.74, 0.16, 0.93)   # front leg
+                ln(0.24, 0.74, 0.08, 0.86)   # back leg
+
+            elif pose == "squat":
+                # Bodyweight squat: deep squat
+                head(0.50, 0.11)
+                ln(0.50, 0.24, 0.48, 0.52)   # body
+                ln(0.50, 0.36, 0.74, 0.44)   # left arm forward
+                ln(0.50, 0.36, 0.26, 0.44)   # right arm forward
+                ln(0.48, 0.52, 0.68, 0.70)   # right thigh
+                ln(0.68, 0.70, 0.62, 0.93)   # right lower leg
+                ln(0.48, 0.52, 0.28, 0.70)   # left thigh
+                ln(0.28, 0.70, 0.32, 0.93)   # left lower leg
+
+            elif pose == "box_squat":
+                # Box squat: sitting on box
+                self._sharp_rect(fx + fw * 0.14, fy + fh * 0.71, fw * 0.72, fh * 0.16,
+                                 self.DARK_BG, self.CHARCOAL, 0.8)
+                head(0.50, 0.11)
+                ln(0.50, 0.24, 0.50, 0.71)   # body upright
+                ln(0.50, 0.38, 0.72, 0.56)   # right arm
+                ln(0.50, 0.38, 0.28, 0.56)   # left arm
+                ln(0.50, 0.71, 0.72, 0.71)   # right thigh (horizontal)
+                ln(0.72, 0.71, 0.70, 0.93)   # right lower leg
+                ln(0.50, 0.71, 0.28, 0.71)   # left thigh
+                ln(0.28, 0.71, 0.28, 0.93)   # left lower leg
+
+            elif pose == "split_squat":
+                # Split squat / lunge
+                head(0.50, 0.09)
+                ln(0.50, 0.22, 0.50, 0.52)   # body
+                ln(0.50, 0.34, 0.68, 0.46)   # right arm
+                ln(0.50, 0.34, 0.32, 0.46)   # left arm
+                ln(0.50, 0.52, 0.65, 0.70)   # front thigh
+                ln(0.65, 0.70, 0.68, 0.93)   # front lower leg
+                ln(0.50, 0.52, 0.32, 0.72)   # back thigh
+                ln(0.32, 0.72, 0.20, 0.88)   # back lower leg (knee near ground)
 
             elif pose == "hollow":
-                # Hollow body hold: legs extended, lower back pressed flat
-                bx, by = cx, cy + size * 0.05
-                # Body horizontal, slightly curved
-                self.line(bx - body_len * 1.4, by, bx + body_len * 0.4, by)
-                # Head (slightly raised)
-                self.ellipse(bx + body_len * 0.4, by - head_r * 1.8, head_r * 2, head_r * 2, style="D")
-                # Arms overhead
-                self.line(bx - body_len * 0.8, by, bx - body_len * 0.8, by - size * 0.22)
-                self.line(bx - body_len * 0.8, by - size * 0.22, bx - body_len * 1.3, by - size * 0.28)
-                # Legs extended low
-                self.line(bx - body_len * 1.4, by, bx - body_len * 1.8, by - size * 0.15)
-                self.line(bx - body_len * 1.4, by, bx - body_len * 1.8, by + size * 0.05)
+                # Full hollow body hold: on back, legs raised, arms overhead
+                head(0.82, 0.38)
+                ln(0.14, 0.54, 0.75, 0.48)   # body
+                ln(0.75, 0.48, 0.93, 0.30)   # arms overhead right
+                ln(0.14, 0.54, 0.05, 0.36)   # leg 1 raised
+                ln(0.14, 0.54, 0.05, 0.48)   # leg 2 raised
 
             elif pose == "hollow_tuck":
-                # Tuck hollow: knees pulled in
-                bx, by = cx, cy + size * 0.05
-                # Body shorter
-                self.line(bx - body_len * 0.7, by, bx + body_len * 0.4, by)
-                # Head
-                self.ellipse(bx + body_len * 0.4, by - head_r * 1.8, head_r * 2, head_r * 2, style="D")
-                # Arms overhead
-                self.line(bx - body_len * 0.3, by, bx - body_len * 0.3, by - size * 0.22)
-                self.line(bx - body_len * 0.3, by - size * 0.22, bx - body_len * 0.8, by - size * 0.28)
-                # Knees tucked
-                self.line(bx - body_len * 0.7, by, bx - body_len * 0.9, by + size * 0.2)
-                self.line(bx - body_len * 0.9, by + size * 0.2, bx - body_len * 0.6, by + size * 0.32)
+                # Tuck hollow: knees pulled to chest
+                head(0.75, 0.38)
+                ln(0.34, 0.54, 0.68, 0.48)   # body (shorter)
+                ln(0.68, 0.48, 0.90, 0.28)   # arms overhead
+                ln(0.34, 0.54, 0.52, 0.30)   # thighs pulled up
+                ln(0.52, 0.30, 0.40, 0.72)   # lower legs hanging down
 
-            else:  # stand
-                # Upright standing
-                self.ellipse(bx - head_r, by - head_r, head_r * 2, head_r * 2, style="D")
-                bx, by = cx, cy
-                self.line(bx, by + head_r * 2, bx, by + head_r * 2 + body_len)
-                self.line(bx, by + head_r * 2 + body_len * 0.25, bx + limb_len * 0.7, by + head_r * 2 + body_len * 0.7)
-                self.line(bx, by + head_r * 2 + body_len * 0.25, bx - limb_len * 0.7, by + head_r * 2 + body_len * 0.7)
-                self.line(bx, by + head_r * 2 + body_len, bx + limb_len * 0.4, by + head_r * 2 + body_len + limb_len)
-                self.line(bx, by + head_r * 2 + body_len, bx - limb_len * 0.4, by + head_r * 2 + body_len + limb_len)
+            else:  # stand fallback
+                head(0.50, 0.12)
+                ln(0.50, 0.26, 0.50, 0.58)
+                ln(0.50, 0.36, 0.70, 0.52)
+                ln(0.50, 0.36, 0.30, 0.52)
+                ln(0.50, 0.58, 0.60, 0.88)
+                ln(0.50, 0.58, 0.40, 0.88)
 
     # ── Progression Ladder ────────────────────────────────
 
@@ -865,9 +822,9 @@ class ProfessionalDoc(FPDF):
             (255, 255, 255),
         ]
 
-        fig_w = 28          # breedte stickfiguur zone
-        badge_w = 28        # breedte niveau-badge
-        row_h = 24          # hoogte per rij
+        fig_w = 38          # breedte stickfiguur zone
+        badge_w = 26        # breedte niveau-badge
+        row_h = 28          # hoogte per rij
         header_h = 10
         card_w = self.epw
         card_h = header_h + len(levels) * row_h + 4
@@ -905,11 +862,10 @@ class ProfessionalDoc(FPDF):
             self.set_xy(x, ry)
             self.cell(badge_w, row_h, self._clean(lev.get("label", "")), align="C")
 
-            # Stick figure zone
+            # Stick figure zone — volledig binnen het kader
             pose = (poses[i] if poses and i < len(poses) else "stand")
-            fig_cx = x + badge_w + fig_w / 2
-            fig_cy = ry + row_h / 2
-            self._draw_stick_figure(fig_cx, fig_cy, row_h * 0.82, pose)
+            pad = 2
+            self._draw_stick_figure(x + badge_w + pad, ry + pad, fig_w - pad * 2, row_h - pad * 2, pose)
 
             # Naam + cue tekst
             tx = x + badge_w + fig_w + 3
@@ -929,11 +885,11 @@ class ProfessionalDoc(FPDF):
 
     # ── Training Card ─────────────────────────────────────
 
-    def render_training_card(self, title, rows):
+    def render_training_card(self, title, rows, col_widths=None):
         if self._check_page_limit():
             return
         n_cols = max(len(r) for r in rows) if rows else 4
-        row_h = 8
+        row_h = 9
         header_h = 9
         card_h = header_h + len(rows) * row_h + 4
         self._ensure_space(card_h + 8)
@@ -942,6 +898,17 @@ class ProfessionalDoc(FPDF):
         y = self.get_y()
         w = self.epw
         accent_w = 3
+        usable_w = w - accent_w
+
+        # Proportionele kolombreedtes: eerste kolom breed, rest smal
+        if col_widths and len(col_widths) == n_cols:
+            col_ws = [usable_w * f for f in col_widths]
+        elif n_cols == 4:
+            col_ws = [usable_w * f for f in [0.50, 0.13, 0.22, 0.15]]
+        elif n_cols == 3:
+            col_ws = [usable_w * f for f in [0.55, 0.22, 0.23]]
+        else:
+            col_ws = [usable_w / n_cols] * n_cols
 
         # Kaartachtergrond met rand
         self._sharp_rect(x, y, w, card_h, self.LIGHT_BG, self.BORDER, 0.8)
@@ -950,24 +917,27 @@ class ProfessionalDoc(FPDF):
         self._sharp_rect(x, y, accent_w, card_h, self.CHARCOAL)
 
         # Gouden header-balk
-        self._sharp_rect(x + accent_w, y, w - accent_w, header_h, self.BLUE)
-        self.set_font("Montserrat", "B", 9)
+        self._sharp_rect(x + accent_w, y, usable_w, header_h, self.BLUE)
+        self.set_font("Montserrat", "B", 8.5)
         self._color(self.ACCENT_FG)
         self.set_xy(x + accent_w + 4, y + (header_h - 5) / 2)
-        self.cell(w - accent_w - 8, 5, self._clean(title).upper())
+        self.cell(usable_w - 8, 5, self._clean(title).upper())
 
         # Data-rijen met striping
-        col_w = (w - accent_w) / max(n_cols, 1)
         for i, row in enumerate(rows):
             row_y = y + header_h + i * row_h
             bg = self.DARK_BG if i % 2 == 0 else self.LIGHT_BG
-            self._sharp_rect(x + accent_w, row_y, w - accent_w, row_h, bg)
-            self.set_font("Poppins", "", 9)
+            self._sharp_rect(x + accent_w, row_y, usable_w, row_h, bg)
+            # Headerrij vet, rest normaal
+            is_header = (i == 0)
+            self.set_font("Montserrat" if is_header else "Poppins", "B" if is_header else "", 7.5)
             self._color(self.CHARCOAL)
-            self.set_xy(x + accent_w, row_y)
+            col_x = x + accent_w
             for j, cell_val in enumerate(row):
-                self.set_xy(x + accent_w + j * col_w + 2, row_y + (row_h - 5) / 2)
-                self.cell(col_w - 4, 5, str(cell_val))
+                cw = col_ws[j] if j < len(col_ws) else col_ws[-1]
+                self.set_xy(col_x + 2, row_y + (row_h - 5) / 2)
+                self.cell(cw - 3, 5, str(cell_val))
+                col_x += cw
 
         self.set_y(y + card_h + 4)
 
@@ -1025,7 +995,7 @@ class ProfessionalDoc(FPDF):
         elif t == "resources":
             self.render_resources(section["items"])
         elif t == "training_card":
-            self.render_training_card(section["title"], section["rows"])
+            self.render_training_card(section["title"], section["rows"], section.get("col_widths"))
         elif t == "progression_ladder":
             self.render_progression_ladder(
                 section["exercise"],
