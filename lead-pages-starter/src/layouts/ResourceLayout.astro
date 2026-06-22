@@ -131,6 +131,15 @@ const badge = `Gratis ${pages}-pagina ${typeLabel}`;
               onfocus="this.style.borderColor='#FFD500'" onblur="this.style.borderColor='#333333'"
             />
           </div>
+          <div style="display:flex; align-items:flex-start; gap:0.6rem;">
+            <input
+              type="checkbox" id="consent" name="consent" required
+              style="margin-top:0.2rem; accent-color:#FFD500; width:1rem; height:1rem; flex-shrink:0; cursor:pointer;"
+            />
+            <label for="consent" style="font-size:0.8rem; color:#A6A6A6; line-height:1.5; cursor:pointer;">
+              Ik ga akkoord dat Barbenders Belgium mijn naam en e-mailadres gebruikt om mij de gratis gids en gerelateerde content te sturen. Lees ons <a href="/privacy" target="_blank" style="color:#FFD500; text-decoration:underline;">privacybeleid</a>.
+            </label>
+          </div>
           <button
             type="submit"
             style="background:#FFD500; color:#0D0D0D; font-family:'Oswald',sans-serif; font-weight:700; text-transform:uppercase; letter-spacing:0.08em; font-size:0.9rem; padding:0.9rem 1.5rem; border:none; border-radius:0.75rem; cursor:pointer; transition:opacity 0.2s;"
