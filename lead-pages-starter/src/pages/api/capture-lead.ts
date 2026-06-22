@@ -39,9 +39,9 @@ export const POST: APIRoute = async ({ request }) => {
     await notion.pages.create({
       parent: { database_id: dbId },
       properties: {
-        Name: { title: [{ text: { content: name } }] },
+        Naam: { title: [{ text: { content: name } }] },
         Email: { email: email },
-        Resource: { select: { name: resource } },
+        recourse: { select: { name: resource } },
       },
     });
 
